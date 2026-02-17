@@ -17,7 +17,7 @@ export async function getPrediction(imageBuffer: Buffer) {
 		})
 		.toBuffer();
 
-	const tfImage = tf.node.decodeImage(jpeg, 3);
+	const tfImage = tf.node.decodeImage(new Uint8Array(jpeg), 3);
 	const prediction = await model.classify(tfImage);
 	tfImage.dispose();
 	return prediction;
