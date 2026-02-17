@@ -23,6 +23,8 @@
 		"sharp": "^0.34.5"
 	},
 	"trustedDependencies": [
-		"core-js"
+		"@tensorflow/tfjs-node",
+		"core-js",
+		"sharp"
 	]
 }
