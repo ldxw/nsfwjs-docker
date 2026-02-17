@@ -1,4 +1,4 @@
-# nsfwjs-docker
+# nsfwjs-docker [![Docker Pulls](https://img.shields.io/docker/pulls/andresribeiroo/nsfwjs.svg)](https://hub.docker.com/r/andresribeiroo/nsfwjs)
 
 ### Features ✨
 
@@ -9,7 +9,7 @@
 
 ### About 🗞️
 
-A Docker REST API for NSFW detection with [NSFWJS](https://github.com/infinitered/nsfwjs). You can find it on the Docker Hub [here](https://hub.docker.com/r/andresribeiroo/nsfwjs). Created for my social network app, [Rybun](https://rybun.com)
+A Docker REST API for NSFW detection with [NSFWJS](https://github.com/infinitered/nsfwjs). You can find it on the Docker Hub [here](https://hub.docker.com/r/andresribeiroo/nsfwjs).
 
 ### Installation ⚙️
 
