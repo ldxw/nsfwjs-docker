@@ -19,7 +19,7 @@ If you are deploying in production, you will probably want to pass the `--restar
 
 ## Usage 🔨
 
-#### One image, multipart/form-data
+### One image
 
 `POST` request to `/single/multipart-form` sending an image in the `content` field.
 
@@ -50,7 +50,7 @@ If you are deploying in production, you will probably want to pass the `--restar
 }
 ```
 
-### Multiple images, multipart/form-data
+### Multiple images
 
 `POST` request to `/multiple/multipart-form` sending images in the `contents` field.
 
