@@ -1,14 +1,7 @@
-FROM node:buster-slim as builder
+FROM oven/bun
 WORKDIR /usr/app
-RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install
+COPY package.json bun.lock ./
+RUN bun install --production
 COPY . .
-RUN pnpm build
-
-FROM node:buster-slim
-WORKDIR /app
-RUN npm install -g pnpm
-COPY --from=builder /usr/app /app/
-EXPOSE 3333
-CMD ["pnpm", "start"]
+EXPOSE 3000
+CMD ["bun", "run", "start"]

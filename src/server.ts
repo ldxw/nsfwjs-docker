@@ -1,29 +1,42 @@
-import multipart from "@fastify/multipart";
-import fastify from "fastify";
-import { routes } from "./routes.js";
+import { Hono } from "hono";
+import { getPrediction } from "./getPrediction";
 
-const fastifyServer = fastify({
-	bodyLimit: 1048576 * 100,
-});
-fastifyServer.register(multipart, {
-	addToBody: true,
-	sharedSchemaId: "#mySharedSchema",
-});
-fastifyServer.register(routes);
-await fastifyServer.listen({ port: 3333, host: "0.0.0.0" });
+const server = new Hono();
 
-console.log("Server started 🚀");
-
-function handleOnSignal(signal: NodeJS.Signals) {
-	console.log(`closing due to ${signal} signal`);
-	fastifyServer.close().then(() => {
-		process.exit();
-	});
-}
-
-process.on("SIGINT", () => {
-	handleOnSignal("SIGINT");
+server.post("/single/multipart-form", async (c) => {
+	const body = await c.req.parseBody();
+	const image = body.content;
+	if (typeof image === "string") {
+		return c.json({ error: "invalid content" });
+	}
+	const buffer = await image?.arrayBuffer();
+	if (!buffer) {
+		return c.json({ error: "invalid content" });
+	}
+	return c.json({ prediction: await getPrediction(Buffer.from(buffer)) });
 });
-process.on("SIGHUP", () => {
-	handleOnSignal("SIGHUP");
+server.post("/multiple/multipart-form", async (c) => {
+	const body = await c.req.parseBody({ all: true });
+	const contents = body.contents;
+	if (!contents) {
+		return c.json({ error: "no contents field provided" }, 400);
+	}
+	const files = Array.isArray(contents) ? contents : [contents];
+	const imageFiles = files.filter((item): item is File => item instanceof File);
+	if (imageFiles.length !== files.length || imageFiles.length === 0) {
+		return c.json({ error: "invalid contents fields" }, 400);
+	}
+	const predictions = await Promise.all(
+		imageFiles.map(async (file) => {
+			const arrayBuffer = await file.arrayBuffer();
+			const buffer = Buffer.from(arrayBuffer);
+			return getPrediction(buffer);
+		}),
+	);
+	return c.json({ predictions });
 });
+
+export default {
+	port: 3333,
+	fetch: server.fetch,
+};
