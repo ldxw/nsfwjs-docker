@@ -4,8 +4,8 @@
 	"type": "module",
 	"license": "MIT",
 	"scripts": {
-		"dev": "bun --watch src/server.ts",
-		"start": "bun src/server.ts",
+		"dev": "TF_CPP_MIN_LOG_LEVEL=1 bun --watch src/server.ts",
+		"start": "TF_CPP_MIN_LOG_LEVEL=1 bun src/server.ts",
 		"lint": "bunx biome check .",
 		"lint:fix": "bunx biome format --write"
 	},
