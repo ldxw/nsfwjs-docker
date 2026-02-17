@@ -5,7 +5,7 @@
 	"license": "MIT",
 	"scripts": {
 		"dev": "bun --watch src/server.ts",
-		"start": "node dist/server.js",
+		"start": "bun src/server.ts",
 		"lint": "bunx biome check .",
 		"lint:fix": "bunx biome format --write"
 	},
