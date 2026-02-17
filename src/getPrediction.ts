@@ -3,7 +3,6 @@ import * as nsfwjs from "nsfwjs";
 import sharp from "sharp";
 
 tf.enableProdMode();
-
 const model = await nsfwjs.load("file://src/model/", { type: "graph" });
 
 export async function getPrediction(imageBuffer: Buffer) {
@@ -16,7 +15,6 @@ export async function getPrediction(imageBuffer: Buffer) {
 			withoutEnlargement: true,
 		})
 		.toBuffer();
-
 	const tfImage = tf.node.decodeImage(new Uint8Array(jpeg), 3);
 	const prediction = await model.classify(tfImage);
 	tfImage.dispose();
