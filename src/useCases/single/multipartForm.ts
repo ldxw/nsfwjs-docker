@@ -1,6 +1,6 @@
-import { FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import type { FromSchema } from "json-schema-to-ts";
 import { getPrediction } from "../../getPrediction.js";
-import { FromSchema } from "json-schema-to-ts";
 
 export const singleMultipartFormBodySchema = {
 	type: "object",

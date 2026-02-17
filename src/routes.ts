@@ -1,17 +1,16 @@
 import {
-	FastifyInstance,
-	FastifyPluginOptions,
-	FastifyRegisterOptions,
-} from "fastify";
-
+	MultipleMultipartForm,
+	multipleMultipartFormBodySchema,
+} from "@useCases/multiple/multipartForm.js";
 import {
 	SingleMultipartForm,
 	singleMultipartFormBodySchema,
 } from "@useCases/single/multipartForm.js";
-import {
-	MultipleMultipartForm,
-	multipleMultipartFormBodySchema,
-} from "@useCases/multiple/multipartForm.js";
+import type {
+	FastifyInstance,
+	FastifyPluginOptions,
+	FastifyRegisterOptions,
+} from "fastify";
 
 export function routes(
 	fastify: FastifyInstance,

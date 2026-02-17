@@ -1,6 +1,5 @@
-import fastify from "fastify";
 import multipart from "@fastify/multipart";
-
+import fastify from "fastify";
 import { routes } from "./routes.js";
 
 const fastifyServer = fastify({
