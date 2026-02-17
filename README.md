@@ -2,26 +2,26 @@
 
 Docker-Powered Self-Hosted NSFW Detection API ([NSFWJS](https://github.com/infinitered/nsfwjs) under the hood). You can find it on the Docker Hub [here](https://hub.docker.com/r/andresribeiroo/nsfwjs).
 
-### Features ✨
+## Features ✨
 
 - ℹ️ Return predictions for `Neutral`, `Drawing`, `Sexy`, `Hentai` and `Porn`
 - 🎯 Pretty accurate (~93%)
 - 🖼️ Supports different image formats
 - ⚡ 250ms to make predictions to a single image
 
-### Installation ⚙️
+## Installation ⚙️
 
 ```shell
 docker run -p 3333:3333 -d --name nsfwjs andresribeiroo/nsfwjs:2.0
 ```
 
-If you are deploying in production, you will probably want to pass the `--restart always` flag to start the container whenever the server restarts
+If you are deploying in production, you will probably want to pass the `--restart always` flag to start the container whenever the server restarts.
 
-### Usage 🔨
+## Usage 🔨
 
 #### One image, multipart/form-data
 
-`POST` request to `/single/multipart-form` sending an image in the `content` field
+`POST` request to `/single/multipart-form` sending an image in the `content` field.
 
 ```
 {
@@ -50,9 +50,9 @@ If you are deploying in production, you will probably want to pass the `--restar
 }
 ```
 
-#### Multiple images, multipart/form-data
+### Multiple images, multipart/form-data
 
-`POST` request to `/multiple/multipart-form` sending images in the `contents` field
+`POST` request to `/multiple/multipart-form` sending images in the `contents` field.
 
 ```
 {
