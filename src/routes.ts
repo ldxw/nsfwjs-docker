@@ -22,12 +22,10 @@ export function routes(
 		{ schema: { body: singleMultipartFormBodySchema } },
 		SingleMultipartForm,
 	);
-
 	fastify.post(
 		"/multiple/multipart-form",
 		{ schema: { body: multipleMultipartFormBodySchema } },
 		MultipleMultipartForm,
 	);
-
 	done();
 }

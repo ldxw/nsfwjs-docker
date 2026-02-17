@@ -30,7 +30,6 @@ export async function SingleMultipartForm(
 	reply: FastifyReply,
 ) {
 	const image = request.body.content[0] as BodyEntry;
-
 	return reply.send({
 		prediction: await getPrediction(image.data),
 	});

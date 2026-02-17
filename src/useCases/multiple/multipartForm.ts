@@ -30,10 +30,8 @@ export async function MultipleMultipartForm(
 	reply: FastifyReply,
 ) {
 	const images = request.body.contents as BodyEntry[];
-
 	const predictions = await Promise.all(
 		images.map(async (image) => getPrediction(image.data)),
 	);
-
 	return reply.send({ predictions });
 }
