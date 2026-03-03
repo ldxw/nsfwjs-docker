@@ -3,7 +3,7 @@ WORKDIR /usr/app
 # jemalloc is required by sharp for "long-running, multi-threaded processes that involve lots of small memory allocations"
 # https://sharp.pixelplumbing.com/install/#linux-memory-allocator
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libjemalloc2
+    apt-get install -y --no-install-recommends libjemalloc2 dpkg-dev
 # ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 # 自动根据架构写入正确的 jemalloc 路径（amd64/arm64 都行）
 RUN echo "LD_PRELOAD=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libjemalloc.so.2" >> /etc/environment
