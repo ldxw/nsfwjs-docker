@@ -181,12 +181,12 @@ jobs:
 
           # context = $SRC_DIR：Dockerfile 中 COPY . . 只会复制上游源码
           # -t "${{ env.IMAGE_NAME_DH }}:latest" \
-          # -t "${{ env.IMAGE_NAME_DH }}:${VERSION}" \
+          # -t "${{ env.IMAGE_NAME_DH }}:v${VERSION}" \
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             -f "${{ env.DOCKERFILE_UPSTREAM }}" \
             -t "${{ env.IMAGE_NAME_GHCR }}:latest" \
-            -t "${{ env.IMAGE_NAME_GHCR }}:${VERSION}" \
+            -t "${{ env.IMAGE_NAME_GHCR }}:v${VERSION}" \
             --push \
             "${SRC_DIR}"
 
