@@ -1,0 +1,203 @@
+name: nsfwjs Build & Push (multi-arch)
+
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "手动指定上游 tag（如 2.0）。留空则自动取 latest release"
+        required: false
+        default: ""
+      force:
+        description: "强制构建（忽略版本文件对比）"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: nsfwjs-upstream-build
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_OWNER: andresribeiro
+  UPSTREAM_REPO: nsfwjs-docker
+
+  VERSION_FILE: .github/upstream-version.txt
+
+  IMAGE_NAME_DH: ldxw/nsfwjs
+  IMAGE_NAME_GHCR: ghcr.io/ldxw/nsfwjs
+
+  DOCKERFILE_UPSTREAM: .github/workflows/Dockerfile
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for Dockerfile + version file)
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Resolve target upstream version (manual or latest release)
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANUAL="${{ github.event.inputs.version }}"
+          if [ -n "$MANUAL" ]; then
+            VER="$MANUAL"
+            echo "Manual version: $VER"
+          else
+            API="https://api.github.com/repos/${{ env.UPSTREAM_OWNER }}/${{ env.UPSTREAM_REPO }}/releases/latest"
+            VER="$(curl -fsSL "$API" | jq -r '.tag_name')"
+            if [ -z "$VER" ] || [ "$VER" = "null" ]; then
+              echo "ERROR: cannot resolve upstream latest release tag_name"
+              exit 1
+            fi
+            echo "Upstream latest release: $VER"
+          fi
+          VER="${VER#refs/tags/}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Read recorded upstream version (auto-create if missing)
+        id: current
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="${{ env.VERSION_FILE }}"
+          if [ -f "$FILE" ]; then
+            CUR="$(tr -d ' \t\r\n' < "$FILE" || true)"
+          else
+            CUR=""
+          fi
+          echo "current=$CUR" >> "$GITHUB_OUTPUT"
+          if [ -z "$CUR" ]; then
+            echo "Recorded version: (empty/missing)"
+          else
+            echo "Recorded version: $CUR"
+          fi
+
+      - name: Decide whether to build
+        id: decide
+        shell: bash
+        run: |
+          set -euo pipefail
+          FORCE="${{ github.event.inputs.force }}"
+          CUR="${{ steps.current.outputs.current }}"
+          TAR="${{ steps.target.outputs.version }}"
+
+          if [ "$FORCE" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "reason=forced" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 首次初始化：版本文件缺失/为空 → 直接构建
+          if [ -z "$CUR" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "reason=init-version-file" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$CUR" = "$TAR" ]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no-change ($CUR)" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "reason=changed ($CUR -> $TAR)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stop early (nothing to do)
+        if: steps.decide.outputs.build != 'true'
+        run: echo "Skip: ${{ steps.decide.outputs.reason }}"
+
+      - name: Set up QEMU
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login Docker Hub
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login GHCR
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download upstream source tarball (tag)
+        if: steps.decide.outputs.build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.target.outputs.version }}"
+          URL="https://github.com/${{ env.UPSTREAM_OWNER }}/${{ env.UPSTREAM_REPO }}/archive/refs/tags/${VERSION}.tar.gz"
+
+          mkdir -p /tmp/nsfwjs-src
+          curl -fL "$URL" -o /tmp/nsfwjs-src/src.tgz
+          tar -xzf /tmp/nsfwjs-src/src.tgz -C /tmp/nsfwjs-src
+
+          SRC_DIR="$(find /tmp/nsfwjs-src -maxdepth 1 -type d -name "${{ env.UPSTREAM_REPO }}-*" | head -n 1)"
+          if [ -z "$SRC_DIR" ]; then
+            echo "ERROR: cannot find extracted source directory"
+            ls -la /tmp/nsfwjs-src
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "SRC_DIR=$SRC_DIR" >> "$GITHUB_ENV"
+          echo "Source dir: $SRC_DIR"
+
+      - name: Build & Push (UPSTREAM context only, amd64+arm64)
+        if: steps.decide.outputs.build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "${{ env.DOCKERFILE_UPSTREAM }}" ]; then
+            echo "ERROR: missing Dockerfile: ${{ env.DOCKERFILE_UPSTREAM }}"
+            exit 1
+          fi
+
+          # context = $SRC_DIR：Dockerfile 中 COPY . . 只会复制上游源码
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -f "${{ env.DOCKERFILE_UPSTREAM }}" \
+            -t "${{ env.IMAGE_NAME_DH }}:latest" \
+            -t "${{ env.IMAGE_NAME_DH }}:${VERSION}" \
+            -t "${{ env.IMAGE_NAME_GHCR }}:latest" \
+            -t "${{ env.IMAGE_NAME_GHCR }}:${VERSION}" \
+            --push \
+            "${SRC_DIR}"
+
+      - name: Write version file (auto) and push commit
+        if: steps.decide.outputs.build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "${{ env.VERSION_FILE }}")"
+          echo "${VERSION}" > "${{ env.VERSION_FILE }}"
+
+          git add "${{ env.VERSION_FILE }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: bump upstream version to ${VERSION} [skip ci]" || true
+          git push
