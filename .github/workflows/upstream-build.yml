@@ -118,7 +118,9 @@ jobs:
 
       - name: Stop early (nothing to do)
         if: steps.decide.outputs.build != 'true'
-        run: echo "Skip: ${{ steps.decide.outputs.reason }}"
+        shell: bash
+        run: |
+          echo "Skip: ${{ steps.decide.outputs.reason }}"
 
       - name: Set up QEMU
         if: steps.decide.outputs.build == 'true'
