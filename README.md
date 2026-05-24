@@ -1,106 +1,136 @@
-# nsfwjs-docker [![Docker Pulls](https://img.shields.io/docker/pulls/andresribeiroo/nsfwjs.svg)](https://hub.docker.com/r/andresribeiroo/nsfwjs)
+# nsfwjs-docker
 
-Docker-Powered Self-Hosted NSFW Detection API ([NSFWJS](https://github.com/infinitered/nsfwjs) under the hood). You can find it on the Docker Hub [here](https://hub.docker.com/r/andresribeiroo/nsfwjs).
+[![Docker Pulls](https://img.shields.io/docker/pulls/andresribeiroo/nsfwjs.svg)](https://hub.docker.com/r/andresribeiroo/nsfwjs)
+[![License](https://img.shields.io/github/license/andresribeiro/nsfwjs-docker)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/andresribeiro/nsfwjs-docker)](https://github.com/anomalyco/nsfwjs-docker)
 
-## Features ✨
+High-performance, self-hosted NSFW detection API powered by
+[NSFWJS](https://github.com/infinitered/nsfwjs).
 
-- ℹ️ Return predictions for `Neutral`, `Drawing`, `Sexy`, `Hentai` and `Porn`
-- 🎯 Pretty accurate (~93%)
-- 🖼️ Supports different image formats
-- ⚡ 250ms to make predictions to a single image
+- **Accuracy:** ~93%;
+- **Latency:** ~100ms per prediction;
+- **Input:** JPEG, PNG, WebP, AVIF, TIFF, GIF (first frame), raw pixel data;
+- **Output:** 5-class classification — Neutral, Drawing, Sexy, Hentai, Porn;
+- **Multi-architecture:** Supports both `x64` and `arm64`.
+- **Lightweight:** Runs under 350 MB of RAM.
 
-## Installation ⚙️
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Examples](#examples)
+- [Performance](#performance)
+- [Build from source](#build-from-source)
+- [Local development](#local-development)
+- [License](#license)
+
+## Installation
 
 ```shell
-docker run -p 3333:3333 -d --name nsfwjs andresribeiroo/nsfwjs:2.0
+docker run -p 3333:3333 -d --name nsfwjs andresribeiroo/nsfwjs:3.0
 ```
 
-If you are deploying in production, you will probably want to pass the `--restart always` flag to start the container whenever the server restarts.
+## Usage
 
-## Usage 🔨
+`POST` the raw image bytes to `/classify` with
+`Content-Type: application/octet-stream`.
 
-### One image
-
-`POST` request to `/single/multipart-form` sending an image in the `content` field.
+### Example Response:
 
 ```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+```json
 {
   "prediction": [
-    {
-      "className": "Neutral",
-      "probability": 0.6371303796768188
-    },
-    {
-      "className": "Drawing",
-      "probability": 0.3603636920452118
-    },
-    {
-      "className": "Hentai",
-      "probability": 0.0024505197070538998
-    },
-    {
-      "className": "Sexy",
-      "probability": 0.00003775714503717609
-    },
-    {
-      "className": "Porn",
-      "probability": 0.000017730137187754735
-    }
+    { "className": "Neutral", "probability": 0.637 },
+    { "className": "Drawing", "probability": 0.360 },
+    { "className": "Hentai", "probability": 0.002 },
+    { "className": "Sexy", "probability": 0.000 },
+    { "className": "Porn", "probability": 0.000 }
   ]
 }
 ```
 
-### Multiple images
+The probability of each category ranges from 0 (lowest) to 1 (highest).
 
-`POST` request to `/multiple/multipart-form` sending images in the `contents` field.
+## Examples
 
+### Node.js / Browser
+
+```js
+const res = await fetch("http://localhost:3333/classify", {
+  method: "POST",
+  headers: { "Content-Type": "application/octet-stream" },
+  body: imageBlobOrBuffer,
+});
+const { prediction } = await res.json();
 ```
-{
-  "predictions": [
-    [
-      {
-        "className": "Neutral",
-        "probability": 0.6371303796768188
-      },
-      {
-        "className": "Drawing",
-        "probability": 0.3603636920452118
-      },
-      {
-        "className": "Hentai",
-        "probability": 0.0024505197070538998
-      },
-      {
-        "className": "Sexy",
-        "probability": 0.00003775714503717609
-      },
-      {
-        "className": "Porn",
-        "probability": 0.000017730137187754735
-      }
-    ],
-    [
-      {
-        "className": "Neutral",
-        "probability": 0.9498893618583679
-      },
-      {
-        "className": "Drawing",
-        "probability": 0.04626458138227463
-      },
-      {
-        "className": "Hentai",
-        "probability": 0.00267870188690722
-      },
-      {
-        "className": "Sexy",
-        "probability": 0.0008198379655368626
-      },
-      {
-        "className": "Porn",
-        "probability": 0.0003475486591923982
-      }
-    ]
-  ]
-}
+
+### Python
+
+```python
+import requests
+
+with open("image.jpg", "rb") as f:
+    resp = requests.post(
+        "http://localhost:3333/classify",
+        data=f,
+        headers={"Content-Type": "application/octet-stream"},
+    )
+print(resp.json()["prediction"])
+# [{ className: "Neutral", probability: 0.637 }, ...]
 ```
+
+### httpie
+
+```shell
+http POST localhost:3333/classify Content-Type:application/octet-stream @image.jpg
+```
+
+### curl
+
+```shell
+curl -X POST \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @image.jpg \
+  http://localhost:3333/classify
+```
+
+## Performance
+
+This container is built for speed:
+
+- **SIMD-accelerated image processing** — `sharp` (powered by libvips) handles
+  image decoding and resizing to 224×224 before inference, taking advantage of
+  SIMD instructions on compatible CPUs.
+- **jemalloc allocator** — The Docker image links against `jemalloc`, which
+  reduces fragmentation and improves memory usage under concurrent workloads
+  compared to the glibc allocator.
+- **Model failure safety** — If an error occurs during model inference, the
+  underlying TensorFlow tensors are immediately disposed of. This architectural
+  fallback completely prevents CPU memory leaks under any failure condition.
+- **Raw binary transport** — The API accepts `application/octet-stream` instead
+  of multipart form data or base64-encoded JSON. This avoids the overhead of
+  multipart parsing and base64 expansion, resulting in faster decoding and lower
+  network transfer times.
+
+## Build from source
+
+```shell
+docker build -t nsfwjs .
+docker run -p 3333:3333 nsfwjs
+```
+
+## Local development
+
+Requires [Deno](https://deno.com).
+
+```shell
+deno task dev     # watch mode (restarts on file changes)
+deno task start   # production mode
+```
+
+The server listens on port `3333`.
